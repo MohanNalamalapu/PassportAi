@@ -1,267 +1,73 @@
 # PassportAI Architecture
 
-## Architecture Overview
+PassportAI is a stateless, browser-first Next.js 15 application. It combines server-side API endpoints for sensitive integrations (such as background removal) with client-side computer vision models to provide a zero-storage, privacy-by-design user experience.
 
-PassportAI is a stateless Next.js 15 application with a browser-first user experience and server-side API protection for sensitive integrations. The application uses JSON-driven document templates, client-side computer vision where practical, server-side background removal through Remove.bg, and local browser storage for MVP state.
+---
 
-## High-Level Flow
+## High-Level Processing Pipeline
 
 ```mermaid
-flowchart LR
-  A[User selects template] --> B[Upload selfie]
-  B --> C[Client validation]
-  C --> D[Server background removal]
-  D --> E[Face detection and landmarks]
-  E --> F[Template-driven crop]
-  F --> G[Compliance engine]
-  G --> H[Results page]
-  H --> I[JPEG PNG PDF downloads]
+flowchart TD
+  Upload[1. Upload Selfie] --> BG[2. API background removal]
+  BG --> Vision[3. Browser MediaPipe landmarks]
+  Vision --> Crop[4. Centering & aspect-ratio crop]
+  Crop --> Check[5. 10 compliance rules]
+  Check --> Export[6. JPEG, PNG, PDF downloads]
 ```
 
-## Core Modules
+The pipeline operates in six distinct stages:
+1.  **Selection & Upload**: The user selects a target template (e.g., India Passport) and uploads a JPEG or PNG image under 10MB.
+2.  **Background Removal**: The client sends the image to the server (`/api/remove-background`), which forwards it to the Remove.bg API, normalizes the transparent output, flattens it with the template's required background color using the Sharp library, and returns a Base64 PNG.
+3.  **Landmark Extraction**: The client loads MediaPipe Face Mesh client-side to detect face landmarks (chin, nose tip, left/right eyes, hairline) in the processed image.
+4.  **Crop Derivation**: The crop engine calculates ideal crop boundaries based on the detected landmarks and output aspect ratios.
+5.  **Compliance Audit**: Ten compliance rules check face bounds, headroom margins, rotation, exposure, and focus.
+6.  **Multi-Format Export**: The final crop is drawn onto HTML5 canvas with brightness/contrast filters and exported as JPEG, PNG, or a print-ready PDF using `pdf-lib`.
 
-### Template Registry
+---
 
-Loads document requirements from JSON files. The registry exposes lookup functions by template id, country, and document type.
+## Core System Modules
 
-Responsibilities:
+### 1. Template Registry & Schema
+Loads and serves specifications from a static JSON file (`data/passport-templates.json`). The registry supports lookup functions used by the selector and validation systems.
+*   **Dimensions**: Width and height in millimeters (e.g., 35 x 45 mm).
+*   **DPI**: Output resolution density (default: 300 DPI) to convert millimeters to exact target pixels.
+*   **Background**: Expected background color (e.g., solid white, light gray).
+*   **Ratios**: Mandated head height ranges (e.g., head must occupy 50% to 80% of the frame).
 
-- Validate template schema.
-- Provide defaults for optional thresholds.
-- Keep crop and compliance engines independent from country-specific code.
+### 2. Client-Side Vision Service
+Runs the **MediaPipe Face Mesh** model directly in the browser to offload server costs and ensure absolute user privacy.
+*   Extracts 468 3D facial coordinate landmarks.
+*   Estimates face orientation (yaw, pitch, roll) from relative distances of eyes, nose, and chin.
+*   Measures image focus/sharpness via edge gradients and exposure/brightness via pixel color sampling.
 
-### Processing Pipeline
+### 3. Crop Engine
+Calculates the cropping boundaries `{ x, y, width, height }` based on facial landmarks and target template constraints.
+*   **Aspect Ratio Preservation**: Computes width from the output aspect ratio: `cropWidth = cropHeight * aspect`.
+*   **Unclamped Centering**: Position coordinates are centered directly around the face midline:
+    *   `cropX = faceCenterX - cropWidth / 2`
+    *   `cropY = idealTop`
+*   **Out-of-Bounds Padding**: The crop engine permits coordinates to go outside the source image bounds (negative `x`/`y` or extending beyond image dimensions). This ensures the face is never shifted off-center and the aspect ratio is never distorted.
 
-Coordinates upload validation, background removal, landmark detection, cropping, compliance checks, and export generation.
+### 4. Canvas Drawing Helper
+The `drawCroppedImage` function handles rendering of the crop coordinates onto the final output canvas.
+*   **White Padding**: Clears the canvas with a solid white background. If the crop box is out of bounds, the empty space is rendered as a clean white border.
+*   **Studio Lighting Filter**: Applies a canvas filter `brightness(1.06) contrast(1.04) saturate(1.02)` during rendering to automatically boost exposure and enhance output aesthetics.
 
-Recommended pipeline stages:
+### 5. Compliance Engine
+Validates the cropped photo against ten checks, deducting points from a base score of 100:
+*   *Critical Errors* (e.g., multiple faces, bad head ratio, no headroom, off-center alignment) deduct 20 points and fail compliance.
+*   *Warnings* (e.g., exposure warnings, blur warnings) deduct 5 points and provide feedback without failing compliance.
 
-1. validateInput
-2. loadTemplate
-3. removeBackground
-4. detectFaces
-5. detectLandmarks
-6. cropToTemplate
-7. runCompliance
-8. generateExports
+### 6. Export Engine
+Transforms the canvas buffer into final download files.
+*   **JPEG**: Exported at 95% quality for small file size.
+*   **PNG**: Exported as lossless image.
+*   **PDF**: Generates a standard document embedding the PNG crop, scaling it to matching physical dimensions.
 
-### Background Removal Service
+---
 
-Server-only adapter around Remove.bg API.
+## State & Privacy Strategy
 
-Responsibilities:
-
-- Hide API key.
-- Normalize errors.
-- Return processed image buffer or URL-safe payload.
-- Support future provider fallback.
-
-### Vision Service
-
-Uses MediaPipe and OpenCV utilities for face and image analysis.
-
-Responsibilities:
-
-- Detect face count.
-- Estimate eye visibility.
-- Estimate head bounds.
-- Estimate yaw/pitch/roll for looking-straight check.
-- Measure brightness and sharpness.
-- Provide normalized metrics for compliance.
-
-### Crop Engine
-
-Uses the selected template and face metrics to create a passport-ready crop.
-
-Responsibilities:
-
-- Convert mm to pixels using DPI.
-- Calculate output canvas.
-- Position face center.
-- Enforce head ratio range.
-- Fill required background.
-- Return final image canvas/blob.
-
-### Compliance Engine
-
-Runs 10 fixed MVP checks using template thresholds and measured vision metrics.
-
-Responsibilities:
-
-- Produce score.
-- Produce pass/warning/fail result.
-- Produce suggestions.
-- Keep check outputs explainable.
-
-### Export Service
-
-Generates downloadable formats.
-
-Responsibilities:
-
-- JPEG export.
-- PNG export.
-- PDF export with physical dimensions.
-- Filename generation.
-
-## Proposed Folder Structure
-
-```text
-passportai/
-  app/
-    page.tsx
-    upload/
-      page.tsx
-    results/
-      page.tsx
-    api/
-      remove-background/
-        route.ts
-      process/
-        route.ts
-      export/
-        pdf/
-          route.ts
-  components/
-    landing/
-      Hero.tsx
-      Features.tsx
-      HowItWorks.tsx
-    upload/
-      CountrySelector.tsx
-      UploadDropzone.tsx
-      ProcessingTimeline.tsx
-    results/
-      BeforeAfterComparison.tsx
-      ComplianceReport.tsx
-      DownloadPanel.tsx
-      TemplateSummary.tsx
-    shared/
-      AppShell.tsx
-      StatusBadge.tsx
-      ProgressStep.tsx
-  data/
-    passport-templates.json
-  lib/
-    templates/
-      registry.ts
-      schema.ts
-    vision/
-      faceDetection.ts
-      faceMesh.ts
-      imageMetrics.ts
-      opencv.ts
-    processing/
-      pipeline.ts
-      backgroundRemoval.ts
-      cropEngine.ts
-      complianceEngine.ts
-      exportService.ts
-    storage/
-      localSession.ts
-    utils/
-      dimensions.ts
-      errors.ts
-      files.ts
-  public/
-    samples/
-  styles/
-    globals.css
-  docs/
-  Dockerfile
-  docker-compose.yml
-  next.config.ts
-  package.json
-```
-
-## Route Structure
-
-```text
-/                 Landing page, features, how it works
-/upload           Country selector, upload, processing flow
-/results          Before/after, compliance report, downloads
-/api/remove-background
-/api/process
-/api/export/pdf
-```
-
-## API Structure
-
-```text
-POST /api/remove-background
-  Input: multipart image
-  Output: background-removed image payload
-
-POST /api/process
-  Input: image payload, templateId
-  Output: processed image, metrics, compliance report
-
-POST /api/export/pdf
-  Input: final image, templateId
-  Output: PDF file
-```
-
-For V1, processing may be split between client and server. The API design should still make it possible to move heavier processing server-side later.
-
-## Data Model
-
-### Document Template
-
-```json
-{
-  "id": "india_passport",
-  "country": "India",
-  "document": "Passport",
-  "width_mm": 35,
-  "height_mm": 45,
-  "background": "white",
-  "dpi": 300,
-  "head_ratio_min": 70,
-  "head_ratio_max": 80,
-  "face_center_tolerance": 0.08,
-  "min_width_px": 413,
-  "min_height_px": 531
-}
-```
-
-### Compliance Result
-
-```json
-{
-  "score": 92,
-  "status": "pass",
-  "checks": [
-    {
-      "id": "face_centered",
-      "label": "Face centered",
-      "status": "pass",
-      "points": 10,
-      "suggestion": null
-    }
-  ],
-  "suggestions": ["Move slightly closer to the camera"]
-}
-```
-
-## State Strategy
-
-V1 uses local browser state only:
-
-- selectedTemplateId
-- uploaded image preview
-- processed result
-- compliance report
-
-Use local storage only for non-sensitive flow recovery. Avoid long-term image persistence.
-
-## Deployment Architecture
-
-Vercel hosts the Next.js app and API routes. Remove.bg is accessed from server routes only. Static template JSON is bundled with the app. No database or object storage is required for V1.
-
-Future scale path:
-
-- Add object storage for temporary files.
-- Add queue for async processing.
-- Move OpenCV-heavy work to dedicated worker.
-- Add observability and rate limiting.
-
+To meet strict privacy standards:
+*   No images are stored on the server or database.
+*   Uploaded and processed file streams are temporarily kept in client-side memory (`sessionStorage`) and discarded immediately when the user navigates away or closes the browser tab.
