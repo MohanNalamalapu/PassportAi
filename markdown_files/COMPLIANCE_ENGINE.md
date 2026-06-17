@@ -1,6 +1,6 @@
 # Compliance Engine
 
-The compliance engine evaluates the final cropped passport photo against selected country's official criteria. It runs entirely in the browser and outputs a pass/fail status and an overall score from 0 to 100.
+The compliance engine evaluates the final cropped passport photo against selected country's official criteria. It runs entirely in the browser and outputs a pass/fail status and an overall score from 0 to 100. It runs 10 core checks, with optional brightness/sharpness support when template thresholds are configured.
 
 ## List of Compliance Checks
 

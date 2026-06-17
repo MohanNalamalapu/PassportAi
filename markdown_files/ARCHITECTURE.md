@@ -11,17 +11,17 @@ flowchart TD
   Upload[1. Upload Selfie] --> BG[2. API background removal]
   BG --> Vision[3. Browser MediaPipe landmarks]
   Vision --> Crop[4. Centering & aspect-ratio crop]
-  Crop --> Check[5. 10 compliance rules]
+  Crop --> Check[5. Compliance checks]
   Check --> Export[6. JPEG, PNG, PDF downloads]
 ```
 
 The pipeline operates in six distinct stages:
-1.  **Selection & Upload**: The user selects a target template (e.g., India Passport) and uploads a JPEG or PNG image under 10MB.
+1.  **Selection & Upload**: The user selects a target template (e.g., India Passport) and uploads a JPEG or PNG image (environment-configurable size limits, default 5MB).
 2.  **Background Removal**: The client sends the image to the server (`/api/remove-background`), which forwards it to the Remove.bg API, normalizes the transparent output, flattens it with the template's required background color using the Sharp library, and returns a Base64 PNG.
-3.  **Landmark Extraction**: The client loads MediaPipe Face Mesh client-side to detect face landmarks (chin, nose tip, left/right eyes, hairline) in the processed image.
+3.  **Landmark Extraction**: The client loads MediaPipe Face Mesh client-side using locally served assets (no remote CDN needed) to detect face landmarks (chin, nose tip, left/right eyes, hairline) in the processed image.
 4.  **Crop Derivation**: The crop engine calculates ideal crop boundaries based on the detected landmarks and output aspect ratios.
-5.  **Compliance Audit**: Ten compliance rules check face bounds, headroom margins, rotation, exposure, and focus.
-6.  **Multi-Format Export**: The final crop is drawn onto HTML5 canvas with brightness/contrast filters and exported as JPEG, PNG, or a print-ready PDF using `pdf-lib`.
+5.  **Compliance Audit**: Runs 10 core checks, with optional brightness/sharpness support when template thresholds are configured.
+6.  **Multi-Format Export**: The final crop is drawn onto HTML5 canvas with brightness/contrast filters and exported as JPEG, PNG, or a PDF export using `pdf-lib`.
 
 ---
 
@@ -35,7 +35,7 @@ Loads and serves specifications from a static JSON file (`data/passport-template
 *   **Ratios**: Mandated head height ranges (e.g., head must occupy 50% to 80% of the frame).
 
 ### 2. Client-Side Vision Service
-Runs the **MediaPipe Face Mesh** model directly in the browser to offload server costs and ensure absolute user privacy.
+Runs the **MediaPipe Face Mesh** model directly in the browser using locally served assets (no remote CDN needed) to offload server costs.
 *   Extracts 468 3D facial coordinate landmarks.
 *   Estimates face orientation (yaw, pitch, roll) from relative distances of eyes, nose, and chin.
 *   Measures image focus/sharpness via edge gradients and exposure/brightness via pixel color sampling.
@@ -54,7 +54,7 @@ The `drawCroppedImage` function handles rendering of the crop coordinates onto t
 *   **Studio Lighting Filter**: Applies a canvas filter `brightness(1.06) contrast(1.04) saturate(1.02)` during rendering to automatically boost exposure and enhance output aesthetics.
 
 ### 5. Compliance Engine
-Validates the cropped photo against ten checks, deducting points from a base score of 100:
+Validates the cropped photo against 10 core checks (with optional brightness/sharpness support when template thresholds are configured), deducting points from a base score of 100:
 *   *Critical Errors* (e.g., multiple faces, bad head ratio, no headroom, off-center alignment) deduct 20 points and fail compliance.
 *   *Warnings* (e.g., exposure warnings, blur warnings) deduct 5 points and provide feedback without failing compliance.
 
@@ -62,12 +62,11 @@ Validates the cropped photo against ten checks, deducting points from a base sco
 Transforms the canvas buffer into final download files.
 *   **JPEG**: Exported at 95% quality for small file size.
 *   **PNG**: Exported as lossless image.
-*   **PDF**: Generates a standard document embedding the PNG crop, scaling it to matching physical dimensions.
+*   **PDF**: Generates a standard document embedding the PNG crop as a PDF export.
 
 ---
 
 ## State & Privacy Strategy
 
 To meet strict privacy standards:
-*   No images are stored on the server or database.
-*   Uploaded and processed file streams are temporarily kept in client-side memory (`sessionStorage`) and discarded immediately when the user navigates away or closes the browser tab.
+*   No database persistence. Processed results are stored only in browser sessionStorage for the current tab/session.

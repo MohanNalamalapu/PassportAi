@@ -1,15 +1,15 @@
 # PassportAI
 
-PassportAI is an AI-assisted passport photo generator. Users select a country/document template, upload a selfie, and receive a compliant passport photo with background removal, face-aware cropping, compliance scoring, and multi-format export.
+PassportAI is an AI-assisted passport-style photo generator. Users select a country/document template, upload a selfie, and receive a cropped photo with background removal, face-aware cropping, compliance scoring, and multi-format export.
 
 ## Features
 
 - Next.js 15 App Router with TypeScript and Tailwind CSS
 - 22 passport/visa templates across 19 countries (JSON-driven)
-- Drag-and-drop upload with client and server validation
+- Drag-and-drop upload with client and server validation (environment-configurable size limits, default 5MB - 10MB)
 - Remove.bg background removal (server-side API key protection)
 - MediaPipe face detection and landmark-based cropping (served locally from `public/mediapipe`, no CDN required)
-- 10-check compliance engine (head ratio, centering, brightness, sharpness, pose, eyes, sunglasses, background, resolution, single face)
+- Compliance engine running 10 core checks, with optional brightness/sharpness support when template thresholds are configured
 - Export to JPEG, PNG, and PDF
 - Functional `/results` page with session-based result persistence
 - Vitest unit tests and GitHub Actions CI
@@ -44,15 +44,15 @@ Create `.env.local` from `.env.example`:
 ```text
 REMOVE_BG_API_KEY=your_remove_bg_api_key_here
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_MAX_UPLOAD_MB=10
-MAX_UPLOAD_MB=10
+NEXT_PUBLIC_MAX_UPLOAD_MB=5
+MAX_UPLOAD_MB=5
 ```
 
 Notes:
 
 - `REMOVE_BG_API_KEY` is required for background removal.
-- Uploaded images are not persisted to a database in V1.
-- Processing results are stored in browser sessionStorage only.
+- Uploaded images are not persisted to a database.
+- Processed results are stored in browser sessionStorage for the current tab/session.
 
 ## Local Development
 
@@ -80,11 +80,11 @@ npm run build
 
 ## Docker
 
-Docker support is available but requires additional configuration (`output: "standalone"` in `next.config.ts`). See `RUNBOOK.md` for deployment notes.
+Docker support is not currently included.
 
 ## Privacy
 
 - Template selection persists in localStorage.
 - Uploaded photos stay in browser memory during processing.
 - Background removal sends the image to Remove.bg server-side.
-- No database storage of user photos in V1.
+- No database persistence. Processed results are stored only in browser sessionStorage for the current tab/session.

@@ -19,6 +19,6 @@ Visual style guidelines and UI page layouts for PassportAI.
 *   Template summary panel displaying specific dimension requirements.
 
 ### 3. Results Screen
-*   A side-by-side comparison comparing the source selfie with the final AI-centered cropped output.
+*   A processed preview card showing the final AI-centered cropped output.
 *   Interactive compliance checklist card showing rules that passed or failed.
 *   A download panel with buttons to save JPEG, PNG, and PDF formats.

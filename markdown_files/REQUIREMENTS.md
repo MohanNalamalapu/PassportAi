@@ -5,7 +5,7 @@ PassportAI has clear functional, compliance, and security requirements to suppor
 ## 1. Functional Specifications
 *   **Templates**: 22 specs spanning 19 countries (including India, USA, UK, Canada).
 *   **Supported Upload formats**: `image/jpeg` and `image/png` formats only.
-*   **Max Upload size**: 10MB limit.
+*   **Max Upload size**: 5MB limit (environment-configurable up to 10MB).
 *   **Export resolution**: Output images must compile at 300 DPI.
 
 ## 2. Compliance Verification Rules
@@ -16,6 +16,6 @@ PassportAI has clear functional, compliance, and security requirements to suppor
 *   **Background**: Clean, solid white or light-grey color.
 
 ## 3. Security & Privacy Requirements
-*   **No Persistence**: Uploaded and processed images must remain in browser memory and not be stored in any database or folder.
+*   **No Persistence**: No database persistence. Processed results are stored only in browser sessionStorage for the current tab/session.
 *   **API Security**: The Remove.bg API key must be kept hidden on the server and never exposed to public client requests.
 *   **Rate Limits**: Rate limits are set on the background removal endpoint to prevent excessive API costs.

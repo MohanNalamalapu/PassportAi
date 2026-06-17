@@ -42,5 +42,5 @@ Retrieves a specific document template by its ID.
 
 ## Configuration & Safety Rules
 *   **Environment Variables**: The `REMOVE_BG_API_KEY` is loaded on the server and never exposed to the client.
-*   **File Limits**: Uploads are restricted by `MAX_UPLOAD_MB` (default: 10MB) to ensure safety.
+*   **File Limits**: Uploads are restricted by `MAX_UPLOAD_MB` (default: 5MB, environment-configurable up to 10MB) to ensure safety.
 *   **Supported Formats**: Only standard `image/jpeg` and `image/png` formats are processed.
