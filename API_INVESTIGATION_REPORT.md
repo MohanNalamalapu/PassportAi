@@ -36,11 +36,11 @@ We performed an inspection and programmatic check on the API keys configured in 
 
 | Location | Key Value | Account API Credits / Free Calls Remaining | Status |
 | :--- | :--- | :--- | :--- |
-| `.env.local` | `eif8z2LLCAHrfz8k8uJq9BKu` | **0** credits, **0** free calls remaining | ❌ **Exhausted / Insufficient Funds** |
-| `.env.example` | `yDEbJKACyDgtVKErTJ81qDCC` | **0** credits, **50** free calls remaining |  **Active / Working** |
+| `.env.local` | **0** credits, **0** free calls remaining | ❌ **Exhausted / Insufficient Funds** |
+| `.env.example` | **0** credits, **50** free calls remaining |  **Active / Working** |
 
-- The active API key loaded by Next.js from `.env.local` is `eif8z2LLCAHrfz8k8uJq9BKu`. Programmatic validation confirms this account has **zero credits** remaining.
-- The example key in `.env.example` (`yDEbJKACyDgtVKErTJ81qDCC`) has **50 free calls remaining** and is active.
+- The active API key loaded by Next.js from `.env.local` has **zero credits** remaining.
+- The example key in `.env.example` has **50 free calls remaining** and is active.
 - Since `.env.local` overrides `.env.example` in Next.js, the exhausted key was actively used by the server, leading to the `402 Payment Required` failure.
 
 ## 7. Recommended Fix

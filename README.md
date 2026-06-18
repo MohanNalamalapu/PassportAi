@@ -78,10 +78,6 @@ npm run test
 npm run build
 ```
 
-## Docker
-
-Docker support is not currently included.
-
 ## Privacy
 
 - Template selection persists in localStorage.
